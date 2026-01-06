@@ -115,4 +115,12 @@ Feel free to fork this repository, add new games, or improve existing ones!
 
 ---
 
+## 💖 Donate
+
+If you enjoy these games, consider supporting the project with a Monero (XMR) donation:
+
+```
+46rAWWQKFvJc5A8mp2EVBDBPofTw2KUzgXtp89anAJT3S39e5szHa46X2PMwawznCTjdcq34AvU1Ra25MYjjPAGNK8T5Wfc
+```
+
 **Enjoy the games! 🎮**
