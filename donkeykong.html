@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donkey Kong</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a0a 0%, #2a1a0a 100%);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        #gameCanvas {
+            border: 4px solid #ff4444;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(255, 68, 68, 0.3);
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            color: #fff;
+        }
+
+        .info-box {
+            background: rgba(255, 68, 68, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 150px;
+            border: 2px solid #ff4444;
+        }
+
+        .info-box h3 {
+            margin-bottom: 10px;
+            color: #ff4444;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .info-box .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff4444;
+        }
+
+        .controls {
+            background: rgba(255, 68, 68, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 2px solid #ff4444;
+        }
+
+        .controls h3 {
+            margin-bottom: 10px;
+            color: #ff4444;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .controls p {
+            margin: 5px 0;
+            opacity: 0.8;
+        }
+
+        .game-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px;
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            border: 4px solid #ff4444;
+        }
+
+        .game-message.show {
+            display: block;
+        }
+
+        .game-message h2 {
+            color: #ff4444;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #ff4444;
+        }
+
+        .game-message.game-over h2 {
+            color: #ff0000;
+        }
+
+        .game-message p {
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+
+        .game-message button {
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .game-message button:hover {
+            transform: scale(1.05);
+        }
+
+        .paused {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px 50px;
+            border-radius: 12px;
+            color: #ff4444;
+            font-size: 36px;
+            font-weight: bold;
+            display: none;
+            z-index: 100;
+            border: 3px solid #ff4444;
+            text-shadow: 0 0 20px #ff4444;
+        }
+
+        .paused.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="700" height="700"></canvas>
+        <div class="side-panel">
+            <div class="info-box">
+                <h3>Score</h3>
+                <div class="value" id="score">0</div>
+            </div>
+            <div class="info-box">
+                <h3>High Score</h3>
+                <div class="value" id="highScore">0</div>
+            </div>
+            <div class="info-box">
+                <h3>Lives</h3>
+                <div class="value" id="lives">3</div>
+            </div>
+            <div class="info-box">
+                <h3>Level</h3>
+                <div class="value" id="level">1</div>
+            </div>
+            <div class="controls">
+                <h3>Controls</h3>
+                <p>← → Move</p>
+                <p>↑ ↓ Climb ladder</p>
+                <p>Space Jump</p>
+                <p>P Pause</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-message" id="game-message">
+        <h2 id="message-title">DONKEY KONG</h2>
+        <p id="message-text">Rescue Pauline from Donkey Kong!</p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+
+    <div class="paused" id="paused">PAUSED</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const TILE_SIZE = 35;
+        const COLS = 20;
+        const ROWS = 20;
+
+        // Platform/level layout
+        const platforms = [
+            { x: 1, y: 16, width: 18 }, // Bottom platform
+            { x: 0, y: 12, width: 6 },
+            { x: 8, y: 12, width: 2 },
+            { x: 14, y: 12, width: 6 },
+            { x: 2, y: 8, width: 6 },
+            { x: 12, y: 8, width: 6 },
+            { x: 0, y: 4, width: 6 },
+            { x: 8, y: 4, width: 4 },
+            { x: 14, y: 4, width: 6 },
+            { x: 6, y: 0, width: 8 }  // Top platform (Donkey Kong)
+        ];
+
+        // Ladders
+        const ladders = [
+            { x: 10, y: 12, height: 4 },
+            { x: 4, y: 8, height: 4 },
+            { x: 15, y: 8, height: 4 },
+            { x: 1, y: 4, height: 4 },
+            { x: 17, y: 4, height: 4 },
+            { x: 9, y: 4, height: 4 },
+            { x: 6, y: 0, height: 4 }
+        ];
+
+        let mario = {
+            x: 2,
+            y: 16,
+            width: 0.8,
+            height: 0.8,
+            dx: 0,
+            dy: 0,
+            speed: 0.12,
+            jumpPower: -0.3,
+            gravity: 0.015,
+            grounded: false,
+            jumping: false,
+            climbing: false,
+            facingRight: true,
+            frame: 0
+        };
+
+        let donkeyKong = {
+            x: 8,
+            y: 0,
+            width: 2,
+            height: 1.8,
+            frame: 0
+        };
+
+        let pauline = {
+            x: 9,
+            y: 0,
+            width: 0.7,
+            height: 0.7,
+            frame: 0
+        };
+
+        let barrels = [];
+        let score = 0;
+        let highScore = localStorage.getItem('donkeykongHighScore') || 0;
+        let lives = 3;
+        let level = 1;
+        let gameOver = false;
+        let paused = false;
+        let gameRunning = false;
+        let animationFrame = 0;
+        let barrelSpawnTimer = 0;
+
+        function initGame() {
+            mario.x = 2;
+            mario.y = 16;
+            mario.dx = 0;
+            mario.dy = 0;
+            mario.grounded = true;
+            mario.jumping = false;
+            mario.climbing = false;
+
+            barrels = [];
+            score = 0;
+            lives = 3;
+            level = 1;
+            gameOver = false;
+            barrelSpawnTimer = 0;
+
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('level').textContent = level;
+        }
+
+        function spawnBarrel() {
+            barrels.push({
+                x: donkeyKong.x + 0.5,
+                y: 1,
+                radius: 0.4,
+                dx: 0.08,
+                dy: 0,
+                falling: false,
+                onPlatform: 1
+            });
+        }
+
+        function onPlatform(x, y) {
+            for (let plat of platforms) {
+                if (x >= plat.x && x <= plat.x + plat.width &&
+                    y >= plat.y && y <= plat.y + 0.5) {
+                    return plat;
+                }
+            }
+            return null;
+        }
+
+        function onLadder(x, y) {
+            for (let ladder of ladders) {
+                if (x >= ladder.x && x <= ladder.x + 1 &&
+                    y >= ladder.y && y <= ladder.y + ladder.height) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateMario() {
+            // Horizontal movement
+            mario.x += mario.dx;
+            mario.y += mario.dy;
+
+            // Boundaries
+            if (mario.x < 0) mario.x = 0;
+            if (mario.x > COLS - 1) mario.x = COLS - 1;
+            if (mario.y > ROWS - 2) mario.y = ROWS - 2;
+
+            // Check if on ladder
+            const onLad = onLadder(mario.x + 0.4, mario.y + 0.4);
+
+            if (!mario.climbing) {
+                // Apply gravity
+                if (!mario.grounded) {
+                    mario.dy += mario.gravity;
+                }
+
+                // Check ground collision
+                const plat = onPlatform(mario.x + 0.4, mario.y + 0.8);
+                if (plat && mario.dy >= 0) {
+                    mario.y = plat.y;
+                    mario.dy = 0;
+                    mario.grounded = true;
+                    mario.jumping = false;
+                } else {
+                    mario.grounded = false;
+                }
+
+                // Falling off screen
+                if (mario.y > ROWS) {
+                    loseLife();
+                }
+            } else {
+                // Climbing
+                mario.dy = 0;
+                const plat = onPlatform(mario.x + 0.4, mario.y + 0.4);
+                if (plat && mario.dy <= 0) {
+                    mario.y = plat.y;
+                    mario.grounded = true;
+                }
+            }
+
+            // Animation
+            mario.frame = (mario.frame + 0.2) % 2;
+
+            // Check if reached Pauline (win level)
+            if (Math.abs(mario.x - pauline.x) < 1 && Math.abs(mario.y - pauline.y) < 1) {
+                winLevel();
+            }
+        }
+
+        function updateBarrels() {
+            barrelSpawnTimer++;
+            const spawnRate = Math.max(60, 150 - level * 15);
+
+            if (barrelSpawnTimer >= spawnRate) {
+                spawnBarrel();
+                barrelSpawnTimer = 0;
+            }
+
+            for (let i = barrels.length - 1; i >= 0; i--) {
+                let b = barrels[i];
+
+                b.x += b.dx;
+
+                // Wrap around
+                if (b.x > COLS) b.x = 0;
+                if (b.x < 0) b.x = COLS;
+
+                // Check if at ladder position
+                const ladX = Math.floor(b.x);
+                const atLadder = ladders.some(l => Math.floor(l.x) === ladX && Math.floor(l.y) === b.onPlatform);
+
+                if (atLadder && !b.falling && Math.random() < 0.02) {
+                    b.falling = true;
+                }
+
+                if (b.falling) {
+                    b.y += 0.1;
+
+                    // Check if landed on platform below
+                    const plat = onPlatform(b.x, b.y + 0.5);
+                    if (plat && plat.y > b.onPlatform) {
+                        b.falling = false;
+                        b.y = plat.y;
+                        b.onPlatform = plat.y;
+                    }
+
+                    // Remove if falls too far
+                    if (b.y > ROWS) {
+                        barrels.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                // Check collision with Mario
+                const dist = Math.hypot(mario.x - b.x, mario.y - b.y);
+                if (dist < 0.8 && !mario.jumping) {
+                    loseLife();
+                }
+            }
+        }
+
+        function loseLife() {
+            lives--;
+            updateUI();
+
+            if (lives <= 0) {
+                gameOver = true;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('donkeykongHighScore', highScore);
+                }
+                document.getElementById('message-title').textContent = 'GAME OVER';
+                document.getElementById('message-text').textContent = `Final Score: ${score}`;
+                document.getElementById('game-message').classList.add('show');
+                document.getElementById('game-message').classList.add('game-over');
+                updateUI();
+            } else {
+                mario.x = 2;
+                mario.y = 16;
+                mario.dx = 0;
+                mario.dy = 0;
+                mario.jumping = false;
+                mario.climbing = false;
+                barrels = [];
+            }
+        }
+
+        function winLevel() {
+            level++;
+            score += 1000 * level;
+            barrels = [];
+            mario.x = 2;
+            mario.y = 16;
+            mario.dx = 0;
+            mario.dy = 0;
+            mario.climbing = false;
+            updateUI();
+        }
+
+        function jump() {
+            if (mario.grounded && !mario.jumping && !mario.climbing) {
+                mario.dy = mario.jumpPower;
+                mario.jumping = true;
+                mario.grounded = false;
+            }
+        }
+
+        function drawGirders() {
+            platforms.forEach(plat => {
+                // Girder pattern
+                for (let i = 0; i < plat.width; i++) {
+                    const x = (plat.x + i) * TILE_SIZE;
+                    const y = plat.y * TILE_SIZE;
+
+                    // Main beam
+                    ctx.fillStyle = '#4a3520';
+                    ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE / 2);
+
+                    // Girder pattern
+                    ctx.fillStyle = '#6a4530';
+                    ctx.fillRect(x + 5, y + 5, TILE_SIZE - 10, 5);
+
+                    // Rivets
+                    ctx.fillStyle = '#8a5540';
+                    ctx.beginPath();
+                    ctx.arc(x + 8, y + 12, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(x + TILE_SIZE - 8, y + 12, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawLadders() {
+            ladders.forEach(lad => {
+                for (let i = 0; i < lad.height; i++) {
+                    const x = lad.x * TILE_SIZE + TILE_SIZE / 2 - 8;
+                    const y = (lad.y + i) * TILE_SIZE;
+
+                    // Rails
+                    ctx.fillStyle = '#888';
+                    ctx.fillRect(x, y, 4, TILE_SIZE);
+                    ctx.fillRect(x + 12, y, 4, TILE_SIZE);
+
+                    // Rungs
+                    ctx.fillStyle = '#666';
+                    ctx.fillRect(x, y + i * TILE_SIZE + 5, 16, 3);
+                }
+            });
+        }
+
+        function drawMario() {
+            const x = mario.x * TILE_SIZE;
+            const y = mario.y * TILE_SIZE;
+            const size = TILE_SIZE * 0.8;
+
+            ctx.save();
+            if (!mario.facingRight) {
+                ctx.translate(x + size, y);
+                ctx.scale(-1, 1);
+                ctx.translate(-x, -y);
+            }
+
+            // Body (red)
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(x + 8, y + 12, size - 16, size - 16);
+
+            // Head (skin)
+            ctx.fillStyle = '#ffcc99';
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + 10, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hat (red)
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(x + 6, y, size - 12, 8);
+
+            // Overalls (blue)
+            ctx.fillStyle = '#0000ff';
+            ctx.fillRect(x + 10, y + 18, size - 20, 8);
+
+            // Legs
+            ctx.fillStyle = '#0000ff';
+            const legOffset = mario.jumping ? Math.sin(animationFrame * 0.3) * 4 : 0;
+            ctx.fillRect(x + 10, y + 24, 6, 8 + legOffset);
+            ctx.fillRect(x + size - 16, y + 24, 6, 8 - legOffset);
+
+            // Arms
+            ctx.fillStyle = '#ffcc99';
+            ctx.fillRect(x + 4, y + 14, 6, 10);
+            ctx.fillRect(x + size - 10, y + 14, 6, 10);
+
+            ctx.restore();
+        }
+
+        function drawDonkeyKong() {
+            const x = donkeyKong.x * TILE_SIZE;
+            const y = donkeyKong.y * TILE_SIZE;
+            const w = donkeyKong.width * TILE_SIZE;
+            const h = donkeyKong.height * TILE_SIZE;
+
+            // Body
+            ctx.fillStyle = '#4a3520';
+            ctx.beginPath();
+            ctx.ellipse(x + w / 2, y + h / 2 + 5, w / 2, h / 2.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Belly
+            ctx.fillStyle = '#6a4530';
+            ctx.beginPath();
+            ctx.ellipse(x + w / 2, y + h / 2 + 10, w / 3, h / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Face
+            ctx.fillStyle = '#4a3520';
+            ctx.beginPath();
+            ctx.ellipse(x + w / 2, y + 15, 20, 15, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.ellipse(x + w / 2 - 8, y + 12, 6, 5, 0, 0, Math.PI * 2);
+            ctx.ellipse(x + w / 2 + 8, y + 12, 6, 5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + w / 2 - 8, y + 13, 3, 0, Math.PI * 2);
+            ctx.arc(x + w / 2 + 8, y + 13, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Arms (throwing)
+            const armSwing = Math.sin(animationFrame * 0.1) * 10;
+            ctx.fillStyle = '#4a3520';
+            ctx.save();
+            ctx.translate(x + w - 10, y + 30);
+            ctx.rotate((armSwing * Math.PI) / 180);
+            ctx.fillRect(0, 0, 15, 10);
+            ctx.restore();
+        }
+
+        function drawPauline() {
+            const x = pauline.x * TILE_SIZE;
+            const y = pauline.y * TILE_SIZE;
+            const size = TILE_SIZE * 0.7;
+
+            // Dress (pink)
+            ctx.fillStyle = '#ff69b4';
+            ctx.fillRect(x + 8, y + 15, size - 16, size - 10);
+
+            // Head
+            ctx.fillStyle = '#ffcc99';
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + 10, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hair (brown)
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.arc(x + size / 2, y + 8, 10, Math.PI, 0);
+            ctx.fill();
+
+            // Help sign
+            const helpOffset = Math.sin(animationFrame * 0.05) * 5;
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('HELP!', x + size / 2, y - 10 + helpOffset);
+        }
+
+        function drawBarrels() {
+            barrels.forEach(b => {
+                const x = b.x * TILE_SIZE;
+                const y = b.y * TILE_SIZE;
+                const r = b.radius * TILE_SIZE;
+
+                // Barrel body
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.ellipse(x, y, r, r * 0.7, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Metal bands
+                ctx.fillStyle = '#666';
+                ctx.fillRect(x - r + 2, y - r * 0.7 + 5, r * 2 - 4, 4);
+                ctx.fillRect(x - r + 2, y + r * 0.7 - 9, r * 2 - 4, 4);
+
+                // Highlights
+                ctx.fillStyle = '#a0552d';
+                ctx.beginPath();
+                ctx.arc(x - r * 0.3, y - r * 0.2, r * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background structure
+            ctx.fillStyle = '#1a1a2a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGirders();
+            drawLadders();
+            drawBarrels();
+            drawMario();
+            drawDonkeyKong();
+            drawPauline();
+
+            // Draw score
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('SCORE: ' + score, 10, 25);
+            ctx.fillText('HI-SCORE: ' + highScore, 250, 25);
+
+            // Draw pause overlay
+            if (paused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff4444';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        function gameLoop() {
+            animationFrame++;
+
+            if (gameRunning && !paused && !gameOver) {
+                updateMario();
+                updateBarrels();
+            }
+
+            donkeyKong.frame = (donkeyKong.frame + 0.05) % 2;
+            pauline.frame = (pauline.frame + 0.03) % 2;
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            document.getElementById('game-message').classList.remove('show');
+            document.getElementById('game-message').classList.remove('game-over');
+            initGame();
+            gameRunning = true;
+        }
+
+        let keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+
+            if (e.key === 'p' || e.key === 'P') {
+                if (gameRunning) {
+                    paused = !paused;
+                    document.getElementById('paused').classList.toggle('show', paused);
+                }
+                return;
+            }
+
+            if (!gameRunning || paused || gameOver) return;
+
+            // Space bar for jumping only
+            if (e.key === ' ') {
+                e.preventDefault();
+                jump();
+                return;
+            }
+
+            // ArrowUp for climbing ladders (not jumping)
+            const onLad = onLadder(mario.x + 0.4, mario.y + 0.4);
+            if (e.key === 'ArrowUp' && onLad) {
+                e.preventDefault();
+                mario.climbing = true;
+                mario.dy = 0;
+            } else if (e.key === 'ArrowDown' && onLad) {
+                e.preventDefault();
+                mario.climbing = true;
+                mario.dy = 0;
+            } else if (!mario.jumping && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                mario.climbing = false;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                mario.climbing = false;
+                mario.dy = 0;
+            }
+        });
+
+        // Handle continuous movement
+        setInterval(() => {
+            if (gameRunning && !paused && !gameOver) {
+                if (keys['ArrowLeft']) {
+                    mario.dx = -mario.speed;
+                    mario.facingRight = false;
+                    mario.climbing = false;
+                } else if (keys['ArrowRight']) {
+                    mario.dx = mario.speed;
+                    mario.facingRight = true;
+                    mario.climbing = false;
+                } else if (!mario.jumping && !mario.climbing) {
+                    mario.dx = 0;
+                }
+
+                if (mario.climbing) {
+                    if (keys['ArrowUp']) {
+                        mario.y -= 0.08;
+                        score += 1;
+                        updateUI();
+                    }
+                    if (keys['ArrowDown']) {
+                        mario.y += 0.08;
+                    }
+                }
+            }
+        }, 16);
+
+        document.getElementById('highScore').textContent = highScore;
+        document.getElementById('game-message').classList.add('show');
+
+        gameLoop();
+    </script>
+</body>
+</html>
+
+    <a href="launcher.html" style="position: fixed; top: 15px; left: 15px; padding: 10px 20px; background: rgba(255, 68, 68, 0.2); border: 2px solid #ff4444; border-radius: 8px; color: #ff4444; text-decoration: none; font-size: 14px; font-weight: bold; font-family: Arial, sans-serif; z-index: 1000; transition: all 0.3s;">← Back to Launcher</a>
+
+    <footer style="position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,0.5); font-size: 12px; font-family: Arial, sans-serif;">
+        Powered by <a href="mailto:grteam2@gmail.com" style="color: #ff4444; text-decoration: none;">Grteam</a>
+    </footer>

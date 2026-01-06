@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Launcher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f0f23 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .star {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            animation: twinkle 2s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-size: 72px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #00d4ff 0%, #00ff88 50%, #ffdd00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 60px rgba(0, 212, 255, 0.5);
+            letter-spacing: 8px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 18px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            padding: 20px;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            border-color: var(--accent-color);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                        0 0 40px var(--glow-color);
+        }
+
+        .game-card:hover::before {
+            opacity: 1;
+        }
+
+        .game-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-color-dark) 100%);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px var(--glow-color);
+            transition: transform 0.3s;
+        }
+
+        .game-card:hover .game-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .game-title {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .game-description {
+            color: #888;
+            font-size: 14px;
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .game-genre {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            color: var(--accent-color);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0 auto;
+            display: block;
+            text-align: center;
+            width: fit-content;
+        }
+
+        .game-card.tetris {
+            --accent-color: #00d4ff;
+            --accent-color-dark: #0099cc;
+            --glow-color: rgba(0, 212, 255, 0.4);
+        }
+
+        .game-card.pacman {
+            --accent-color: #ffff00;
+            --accent-color-dark: #cccc00;
+            --glow-color: rgba(255, 255, 0, 0.4);
+        }
+
+        .game-card.snake {
+            --accent-color: #00ff88;
+            --accent-color-dark: #00cc66;
+            --glow-color: rgba(0, 255, 136, 0.4);
+        }
+
+        .game-card.pong {
+            --accent-color: #ff4757;
+            --accent-color-dark: #cc3333;
+            --glow-color: rgba(255, 71, 87, 0.4);
+        }
+
+        .game-card.breakout {
+            --accent-color: #a55eea;
+            --accent-color-dark: #8844cc;
+            --glow-color: rgba(165, 94, 234, 0.4);
+        }
+
+        .game-card.spaceinvaders {
+            --accent-color: #00ff00;
+            --accent-color-dark: #00cc00;
+            --glow-color: rgba(0, 255, 0, 0.4);
+        }
+
+        .game-card.asteroids {
+            --accent-color: #ffffff;
+            --accent-color-dark: #cccccc;
+            --glow-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .game-card.galaxian {
+            --accent-color: #ff6b6b;
+            --accent-color-dark: #cc5555;
+            --glow-color: rgba(255, 107, 107, 0.4);
+        }
+
+        .game-card.frogger {
+            --accent-color: #00ff00;
+            --accent-color-dark: #00cc00;
+            --glow-color: rgba(0, 255, 0, 0.4);
+        }
+
+        .game-card.donkeykong {
+            --accent-color: #ff4444;
+            --accent-color-dark: #cc3333;
+            --glow-color: rgba(255, 68, 68, 0.4);
+        }
+
+        .game-card.centipede {
+            --accent-color: #ff6b9d;
+            --accent-color-dark: #cc5588;
+            --glow-color: rgba(255, 107, 157, 0.4);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 42px;
+                letter-spacing: 4px;
+            }
+
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+
+    <div class="container">
+        <header>
+            <h1>ARCADE</h1>
+            <p class="subtitle">Classic Games Collection</p>
+        </header>
+
+        <div class="games-grid">
+            <div class="game-card tetris" onclick="launchGame('tetris.html')">
+                <div class="game-icon">🧱</div>
+                <h2 class="game-title">TETRIS</h2>
+                <p class="game-description">Stack falling blocks and complete lines to score points. The classic puzzle game that started it all.</p>
+                <span class="game-genre">Puzzle</span>
+            </div>
+
+            <div class="game-card pacman" onclick="launchGame('pacman.html')">
+                <div class="game-icon">👻</div>
+                <h2 class="game-title">PAC-MAN</h2>
+                <p class="game-description">Navigate mazes, eat dots, and avoid ghosts in this timeless arcade masterpiece.</p>
+                <span class="game-genre">Maze</span>
+            </div>
+
+            <div class="game-card snake" onclick="launchGame('snake.html')">
+                <div class="game-icon">🐍</div>
+                <h2 class="game-title">SNAKE</h2>
+                <p class="game-description">Guide the snake to eat food and grow longer. Don't hit the walls or yourself!</p>
+                <span class="game-genre">Arcade</span>
+            </div>
+
+            <div class="game-card pong" onclick="launchGame('pong.html')">
+                <div class="game-icon">🏓</div>
+                <h2 class="game-title">PONG</h2>
+                <p class="game-description">The original video game. Defeat the computer in this classic table tennis simulation.</p>
+                <span class="game-genre">Sports</span>
+            </div>
+
+            <div class="game-card breakout" onclick="launchGame('breakout.html')">
+                <div class="game-icon">🎯</div>
+                <h2 class="game-title">BREAKOUT</h2>
+                <p class="game-description">Break bricks with a bouncing ball. Features multiple levels and increasing difficulty.</p>
+                <span class="game-genre">Arcade</span>
+            </div>
+
+            <div class="game-card spaceinvaders" onclick="launchGame('spaceinvaders.html')">
+                <div class="game-icon">👾</div>
+                <h2 class="game-title">SPACE INVADERS</h2>
+                <p class="game-description">Defend Earth from waves of alien invaders. The game that popularized the shooter genre.</p>
+                <span class="game-genre">Shooter</span>
+            </div>
+
+            <div class="game-card asteroids" onclick="launchGame('asteroids.html')">
+                <div class="game-icon">☄️</div>
+                <h2 class="game-title">ASTEROIDS</h2>
+                <p class="game-description">Pilot your ship through space, destroying asteroids before they destroy you.</p>
+                <span class="game-genre">Shooter</span>
+            </div>
+
+            <div class="game-card galaxian" onclick="launchGame('galaxian.html')">
+                <div class="game-icon">🚀</div>
+                <h2 class="game-title">GALAXIAN</h2>
+                <p class="game-description">Fight off alien fleets in this classic fixed shooter. Aliens dive-bomb your ship!</p>
+                <span class="game-genre">Shooter</span>
+            </div>
+
+            <div class="game-card frogger" onclick="launchGame('frogger.html')">
+                <div class="game-icon">🐸</div>
+                <h2 class="game-title">FROGGER</h2>
+                <p class="game-description">Help the frog cross busy roads and rivers. Don't get hit by cars!</p>
+                <span class="game-genre">Arcade</span>
+            </div>
+
+            <div class="game-card donkeykong" onclick="launchGame('donkeykong.html')">
+                <div class="game-icon">🦍</div>
+                <h2 class="game-title">DONKEY KONG</h2>
+                <p class="game-description">Climb girders and jump barrels to rescue Pauline from the giant ape!</p>
+                <span class="game-genre">Platform</span>
+            </div>
+
+            <div class="game-card centipede" onclick="launchGame('centipede.html')">
+                <div class="game-icon">🐛</div>
+                <h2 class="game-title">CENTIPEDE</h2>
+                <p class="game-description">Shoot the centipede before it reaches you! Watch out for spiders and scorpions!</p>
+                <span class="game-genre">Shooter</span>
+            </div>
+        </div>
+
+        <footer>
+            <p>Click on any game to start playing</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">11</div>
+                    <div class="stat-label">Games</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">∞</div>
+                    <div class="stat-label">Fun</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">Payment Required</div>
+                </div>
+            </div>
+            <p style="margin-top: 20px;">Powered by <a href="mailto:grteam2@gmail.com" style="color: #00d4ff; text-decoration: none;">Grteam</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Create stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            const numberOfStars = 100;
+
+            for (let i = 0; i < numberOfStars; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = Math.random() * 3 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.animationDelay = Math.random() * 2 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Launch game
+        function launchGame(gameFile) {
+            window.location.href = gameFile;
+        }
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const cards = Array.from(document.querySelectorAll('.game-card'));
+            const currentIndex = cards.findIndex(card => card === document.activeElement);
+
+            switch(e.key) {
+                case 'ArrowRight':
+                case 'ArrowDown':
+                    e.preventDefault();
+                    const nextIndex = (currentIndex + 1) % cards.length;
+                    cards[nextIndex].focus();
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowUp':
+                    e.preventDefault();
+                    const prevIndex = currentIndex <= 0 ? cards.length - 1 : currentIndex - 1;
+                    cards[prevIndex].focus();
+                    break;
+                case 'Enter':
+                    if (document.activeElement.classList.contains('game-card')) {
+                        document.activeElement.click();
+                    }
+                    break;
+            }
+        });
+
+        // Make game cards focusable
+        document.querySelectorAll('.game-card').forEach(card => {
+            card.setAttribute('tabindex', '0');
+        });
+
+        // Initialize
+        createStars();
+    </script>
+</body>
+</html>

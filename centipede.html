@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centipede</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2a 100%);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .game-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        #gameCanvas {
+            border: 4px solid #ff6b9d;
+            border-radius: 8px;
+            box-shadow: 0 0 50px rgba(255, 107, 157, 0.3);
+        }
+
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            color: #fff;
+        }
+
+        .info-box {
+            background: rgba(255, 107, 157, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            min-width: 150px;
+            border: 2px solid #ff6b9d;
+        }
+
+        .info-box h3 {
+            margin-bottom: 10px;
+            color: #ff6b9d;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .info-box .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ff6b9d;
+        }
+
+        .controls {
+            background: rgba(255, 107, 157, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 2px solid #ff6b9d;
+        }
+
+        .controls h3 {
+            margin-bottom: 10px;
+            color: #ff6b9d;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .controls p {
+            margin: 5px 0;
+            opacity: 0.8;
+        }
+
+        .game-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 50px;
+            border-radius: 16px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            border: 4px solid #ff6b9d;
+        }
+
+        .game-message.show {
+            display: block;
+        }
+
+        .game-message h2 {
+            color: #ff6b9d;
+            font-size: 48px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px #ff6b9d;
+        }
+
+        .game-message.game-over h2 {
+            color: #ff0000;
+        }
+
+        .game-message p {
+            color: #fff;
+            font-size: 20px;
+            margin-bottom: 30px;
+        }
+
+        .game-message button {
+            background: #ff6b9d;
+            color: #fff;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .game-message button:hover {
+            transform: scale(1.05);
+        }
+
+        .paused {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px 50px;
+            border-radius: 12px;
+            color: #ff6b9d;
+            font-size: 36px;
+            font-weight: bold;
+            display: none;
+            z-index: 100;
+            border: 3px solid #ff6b9d;
+            text-shadow: 0 0 20px #ff6b9d;
+        }
+
+        .paused.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="600" height="700"></canvas>
+        <div class="side-panel">
+            <div class="info-box">
+                <h3>Score</h3>
+                <div class="value" id="score">0</div>
+            </div>
+            <div class="info-box">
+                <h3>High Score</h3>
+                <div class="value" id="highScore">0</div>
+            </div>
+            <div class="info-box">
+                <h3>Lives</h3>
+                <div class="value" id="lives">3</div>
+            </div>
+            <div class="info-box">
+                <h3>Level</h3>
+                <div class="value" id="level">1</div>
+            </div>
+            <div class="controls">
+                <h3>Controls</h3>
+                <p>← → Move</p>
+                <p>↑ ↓ Aim</p>
+                <p>Space Fire</p>
+                <p>P Pause</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-message" id="game-message">
+        <h2 id="message-title">CENTIPEDE</h2>
+        <p id="message-text">Destroy the centipede before it reaches you!</p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+
+    <div class="paused" id="paused">PAUSED</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const CELL_SIZE = 25;
+        const COLS = 24;
+        const ROWS = 28;
+        const PLAYER_ROW = ROWS - 2;
+
+        let player = {
+            x: COLS / 2,
+            y: PLAYER_ROW,
+            width: 1.5,
+            height: 1.5,
+            speed: 0.15,
+            angle: -Math.PI / 2
+        };
+
+        let bullets = [];
+        let centipede = [];
+        let mushrooms = [];
+        let spiders = [];
+        let scorpions = [];
+
+        let score = 0;
+        let highScore = localStorage.getItem('centipedeHighScore') || 0;
+        let lives = 3;
+        let level = 1;
+        let gameOver = false;
+        let paused = false;
+        let gameRunning = false;
+        let animationFrame = 0;
+        let lastShot = 0;
+        let shootDelay = 250;
+
+        function createMushroom(x, y) {
+            // Don't create if mushroom already exists
+            if (mushrooms.some(m => m.x === x && m.y === y)) return;
+
+            mushrooms.push({
+                x: x,
+                y: y,
+                health: 4
+            });
+        }
+
+        function initMushrooms() {
+            mushrooms = [];
+            // Random mushrooms in play area (excluding player area)
+            const numMushrooms = 30 + level * 5;
+            for (let i = 0; i < numMushrooms; i++) {
+                const x = Math.floor(Math.random() * COLS);
+                const y = Math.floor(Math.random() * (PLAYER_ROW - 5)) + 5;
+                createMushroom(x, y);
+            }
+        }
+
+        function createCentipede() {
+            centipede = [];
+            const segments = 8 + level * 2;
+
+            for (let i = 0; i < segments; i++) {
+                centipede.push({
+                    x: Math.floor(COLS / 2) - Math.floor(i / 2),
+                    y: Math.floor(i / 2),
+                    width: 1,
+                    height: 1,
+                    direction: 1,
+                    movingDown: false
+                });
+            }
+        }
+
+        function initGame() {
+            player.x = COLS / 2;
+            player.y = PLAYER_ROW;
+            player.angle = -Math.PI / 2;
+
+            bullets = [];
+            centipede = [];
+            mushrooms = [];
+            spiders = [];
+            scorpions = [];
+
+            score = 0;
+            lives = 3;
+            level = 1;
+            gameOver = false;
+
+            initMushrooms();
+            createCentipede();
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('level').textContent = level;
+        }
+
+        function shoot() {
+            const now = Date.now();
+            if (now - lastShot < shootDelay) return;
+            lastShot = now;
+
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                dx: Math.cos(player.angle) * 0.8,
+                dy: Math.sin(player.angle) * 0.8,
+                active: true
+            });
+        }
+
+        function movePlayer(dx, dy) {
+            player.x += dx;
+            player.y += dy;
+
+            // Boundaries (in player area)
+            if (player.x < 1) player.x = 1;
+            if (player.x > COLS - 2) player.x = COLS - 2;
+            if (player.y < PLAYER_ROW - 2) player.y = PLAYER_ROW - 2;
+            if (player.y > ROWS - 1) player.y = ROWS - 1;
+        }
+
+        function aim(angle) {
+            player.angle = angle;
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i];
+                b.x += b.dx;
+                b.y += b.dy;
+
+                // Check boundaries
+                if (b.x < 0 || b.x > COLS || b.y < 0 || b.y > ROWS) {
+                    bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Check mushroom collision
+                for (let j = mushrooms.length - 1; j >= 0; j--) {
+                    let m = mushrooms[j];
+                    if (Math.abs(b.x - m.x) < 1 && Math.abs(b.y - m.y) < 1) {
+                        mushrooms[j].health--;
+                        bullets.splice(i, 1);
+
+                        if (mushrooms[j].health <= 0) {
+                            score += 10;
+                            updateUI();
+                            mushrooms.splice(j, 1);
+                        }
+                        return;
+                    }
+                }
+
+                // Check centipede collision
+                for (let j = centipede.length - 1; j >= 0; j--) {
+                    let seg = centipede[j];
+                    if (Math.abs(b.x - seg.x) < 1 && Math.abs(b.y - seg.y) < 1) {
+                        // Hit segment
+                        score += 100;
+                        updateUI();
+
+                        // Split centipede
+                        const index = j;
+                        if (index === 0 || index === centipede.length - 1) {
+                            // Head or tail - just remove
+                            centipede.splice(j, 1);
+                        } else {
+                            // Split in middle - create new centipede
+                            const newCentipede = centipede.splice(j);
+                            if (newCentipede.length > 0) {
+                                // Add to a list of centipedes if we had multiple
+                                // For now, just leave them separate
+                            }
+                        }
+
+                        // Create mushroom at death location
+                        createMushroom(Math.floor(seg.x), Math.floor(seg.y));
+                        bullets.splice(i, 1);
+
+                        // Check if centipede destroyed
+                        if (centipede.length === 0) {
+                            levelComplete();
+                        }
+                        return;
+                    }
+                }
+
+                // Check spider collision
+                for (let j = spiders.length - 1; j >= 0; j--) {
+                    let s = spiders[j];
+                    const dist = Math.hypot(b.x - s.x, b.y - s.y);
+                    if (dist < s.radius) {
+                        score += 300;
+                        updateUI();
+                        spiders.splice(j, 1);
+                        bullets.splice(i, 1);
+                        return;
+                    }
+                }
+
+                // Check scorpion collision
+                for (let j = scorpions.length - 1; j >= 0; j--) {
+                    let s = scorpions[j];
+                    const dist = Math.hypot(b.x - s.x, b.y - s.y);
+                    if (dist < s.radius) {
+                        score += 500;
+                        updateUI();
+                        scorpions.splice(j, 1);
+                        bullets.splice(i, 1);
+                        return;
+                    }
+                }
+            }
+        }
+
+        function updateCentipede() {
+            // Move each segment
+            for (let i = centipede.length - 1; i >= 0; i--) {
+                let seg = centipede[i];
+
+                // Check if segment is in player area
+                if (seg.y >= PLAYER_ROW - 2) {
+                    loseLife();
+                    return;
+                }
+
+                // Check mushroom collision
+                let hitMushroom = mushrooms.some(m =>
+                    Math.floor(seg.x) === m.x && Math.floor(seg.y) === m.y
+                );
+
+                if (hitMushroom) {
+                    seg.movingDown = true;
+                }
+
+                if (seg.movingDown) {
+                    seg.y += 0.1;
+                    if (seg.y >= Math.floor(seg.y)) {
+                        seg.y = Math.floor(seg.y);
+                        seg.movingDown = false;
+                        seg.direction *= -1;
+                    }
+                } else {
+                    // Horizontal movement
+                    seg.x += seg.direction * (0.05 + level * 0.01);
+
+                    // Check boundaries and reverse
+                    if (seg.x <= 0 || seg.x >= COLS - 1) {
+                        seg.direction *= -1;
+                        seg.movingDown = true;
+                    }
+
+                    // Snap to grid when moving horizontally
+                    seg.y = Math.round(seg.y * 10) / 10;
+                }
+            }
+        }
+
+        function spawnSpider() {
+            if (Math.random() < 0.002 && spiders.length < 2) {
+                spiders.push({
+                    x: Math.random() < 0.5 ? 0 : COLS - 1,
+                    y: PLAYER_ROW - 3,
+                    radius: 1.5,
+                    dx: (Math.random() < 0.5 ? 0.08 : -0.08),
+                    dy: -0.05,
+                    timer: 200
+                });
+            }
+        }
+
+        function updateSpiders() {
+            for (let i = spiders.length - 1; i >= 0; i--) {
+                let s = spiders[i];
+
+                s.x += s.dx;
+                s.y += s.dy;
+                s.timer--;
+
+                // Change direction occasionally
+                if (s.timer <= 0) {
+                    s.dx = -s.dx;
+                    s.dy = -s.dy;
+                    s.timer = 100 + Math.random() * 100;
+                }
+
+                // Remove if goes off screen
+                if (s.y < 3 || s.x < -2 || s.x > COLS + 1) {
+                    spiders.splice(i, 1);
+                    continue;
+                }
+
+                // Check collision with player
+                const dist = Math.hypot(player.x - s.x, player.y - s.y);
+                if (dist < s.radius + 0.5) {
+                    loseLife();
+                }
+            }
+        }
+
+        function spawnScorpion() {
+            if (Math.random() < 0.001 && scorpions.length === 0) {
+                scorpions.push({
+                    x: Math.random() < 0.5 ? 0 : COLS - 1,
+                    y: 5,
+                    radius: 1,
+                    dx: (Math.random() < 0.5 ? 0.06 : -0.06)
+                });
+            }
+        }
+
+        function updateScorpions() {
+            for (let i = scorpions.length - 1; i >= 0; i--) {
+                let s = scorpions[i];
+                s.x += s.dx;
+
+                // Poison mushrooms - turn them purple
+                mushrooms.forEach(m => {
+                    if (Math.floor(s.x) === m.x && Math.abs(m.y - s.y) < 3) {
+                        m.poisoned = true;
+                    }
+                });
+
+                // Remove if off screen
+                if (s.x < -2 || s.x > COLS + 1) {
+                    scorpions.splice(i, 1);
+                }
+            }
+        }
+
+        function checkCollisions() {
+            // Check player collision with centipede
+            for (let seg of centipede) {
+                const dist = Math.hypot(player.x - seg.x, player.y - seg.y);
+                if (dist < 1) {
+                    loseLife();
+                    return;
+                }
+            }
+
+            // Check if player touches poisoned mushroom
+            for (let m of mushrooms) {
+                if (m.poisoned && Math.floor(player.x) === m.x && Math.floor(player.y) === m.y) {
+                    loseLife();
+                    return;
+                }
+            }
+        }
+
+        function loseLife() {
+            lives--;
+            updateUI();
+
+            if (lives <= 0) {
+                gameOver = true;
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('centipedeHighScore', highScore);
+                }
+                document.getElementById('message-title').textContent = 'GAME OVER';
+                document.getElementById('message-text').textContent = `Final Score: ${score}`;
+                document.getElementById('game-message').classList.add('show');
+                document.getElementById('game-message').classList.add('game-over');
+                updateUI();
+            } else {
+                // Reset player position
+                player.x = COLS / 2;
+                player.y = PLAYER_ROW;
+                bullets = [];
+            }
+        }
+
+        function levelComplete() {
+            level++;
+            score += 1000 * level;
+
+            // Remove some mushrooms
+            mushrooms = mushrooms.filter(() => Math.random() > 0.3);
+
+            createCentipede();
+            updateUI();
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = '#1a1a3a';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= COLS; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * CELL_SIZE, 0);
+                ctx.lineTo(x * CELL_SIZE, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= ROWS; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * CELL_SIZE);
+                ctx.lineTo(canvas.width, y * CELL_SIZE);
+                ctx.stroke();
+            }
+
+            // Draw player area
+            ctx.fillStyle = '#1a1a4a';
+            ctx.fillRect(0, (PLAYER_ROW - 2) * CELL_SIZE, canvas.width, 3 * CELL_SIZE);
+
+            // Draw mushrooms
+            mushrooms.forEach(m => {
+                const x = m.x * CELL_SIZE + CELL_SIZE / 2;
+                const y = m.y * CELL_SIZE + CELL_SIZE / 2;
+
+                if (m.poisoned) {
+                    ctx.fillStyle = '#9b59b6';
+                } else {
+                    ctx.fillStyle = '#e74c3c';
+                }
+
+                // Mushroom cap
+                ctx.beginPath();
+                ctx.ellipse(x, y - 2, 10, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Mushroom stem
+                ctx.fillStyle = m.poisoned ? '#7d3c98' : '#c0392b';
+                ctx.fillRect(x - 3, y, 6, 8);
+
+                // Spots
+                ctx.fillStyle = m.poisoned ? '#8e44ad' : '#d63031';
+                ctx.beginPath();
+                ctx.arc(x - 4, y - 3, 2, 0, Math.PI * 2);
+                ctx.arc(x + 4, y - 3, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw centipede
+            centipede.forEach((seg, i) => {
+                const x = seg.x * CELL_SIZE + CELL_SIZE / 2;
+                const y = seg.y * CELL_SIZE + CELL_SIZE / 2;
+                const isHead = i === 0;
+
+                // Body segment
+                if (isHead) {
+                    ctx.fillStyle = '#ff6b9d';
+                    ctx.shadowColor = '#ff6b9d';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.fillStyle = '#c0392b';
+                    ctx.shadowColor = '#c0392b';
+                    ctx.shadowBlur = 5;
+                }
+
+                ctx.beginPath();
+                ctx.arc(x, y, isHead ? 12 : 10, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Segment details
+                ctx.fillStyle = isHead ? '#ff9db9' : '#e0564d';
+                ctx.beginPath();
+                ctx.arc(x, y, isHead ? 8 : 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes (head only)
+                if (isHead) {
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(x - 4, y - 2, 2, 0, Math.PI * 2);
+                    ctx.arc(x + 4, y - 2, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Antennae
+                    ctx.strokeStyle = '#ff6b9d';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x - 6, y - 8);
+                    ctx.lineTo(x - 10, y - 14);
+                    ctx.moveTo(x + 6, y - 8);
+                    ctx.lineTo(x + 10, y - 14);
+                    ctx.stroke();
+                }
+
+                // Legs
+                const legOffset = Math.sin(animationFrame * 0.3 + i) * 3;
+                ctx.strokeStyle = isHead ? '#ff6b9d' : '#c0392b';
+                ctx.lineWidth = 2;
+                for (let j = -1; j <= 1; j++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + j * 6, y + 8);
+                    ctx.lineTo(x + j * 8, y + 12 + legOffset);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw spiders
+            spiders.forEach(s => {
+                const x = s.x * CELL_SIZE + CELL_SIZE / 2;
+                const y = s.y * CELL_SIZE + CELL_SIZE / 2;
+
+                ctx.fillStyle = '#8e44ad';
+                ctx.shadowColor = '#8e44ad';
+                ctx.shadowBlur = 8;
+
+                // Body
+                ctx.beginPath();
+                ctx.ellipse(x, y, 18, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // Eyes
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x - 5, y - 3, 4, 0, Math.PI * 2);
+                ctx.arc(x + 5, y - 3, 4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(x - 5, y - 3, 2, 0, Math.PI * 2);
+                ctx.arc(x + 5, y - 3, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Legs
+                ctx.strokeStyle = '#8e44ad';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x + Math.cos(angle) * 15, y + Math.sin(angle) * 12);
+                    ctx.lineTo(x + Math.cos(angle) * 25, y + Math.sin(angle) * 20);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw scorpions
+            scorpions.forEach(s => {
+                const x = s.x * CELL_SIZE + CELL_SIZE / 2;
+                const y = s.y * CELL_SIZE + CELL_SIZE / 2;
+
+                ctx.fillStyle = '#9b59b6';
+                ctx.shadowColor = '#9b59b6';
+                ctx.shadowBlur = 8;
+
+                // Body
+                ctx.beginPath();
+                ctx.ellipse(x, y, 15, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Tail
+                ctx.beginPath();
+                ctx.moveTo(x, y - 10);
+                ctx.quadraticCurveTo(x + 5, y - 15, x + 10, y - 12);
+                ctx.lineTo(x + 8, y - 10);
+                ctx.lineTo(x, y - 8);
+                ctx.fill();
+
+                // Stinger
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(x + 10, y - 12, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // Eyes
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(x - 4, y - 2, 3, 0, Math.PI * 2);
+                ctx.arc(x + 4, y - 2, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pincers
+                ctx.strokeStyle = '#9b59b6';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x - 15, y);
+                ctx.lineTo(x - 20, y - 5);
+                ctx.moveTo(x + 15, y);
+                ctx.lineTo(x + 20, y - 5);
+                ctx.stroke();
+            });
+
+            // Draw bullets
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 10;
+            bullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x * CELL_SIZE, b.y * CELL_SIZE, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+
+            // Draw player
+            const px = player.x * CELL_SIZE;
+            const py = player.y * CELL_SIZE;
+
+            // Ship body
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(player.angle + Math.PI / 2);
+
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(10, 10);
+            ctx.lineTo(0, 5);
+            ctx.lineTo(-10, 10);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+            ctx.shadowBlur = 0;
+
+            // Draw score
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('SCORE: ' + score, 10, 25);
+            ctx.fillText('HI-SCORE: ' + highScore, 200, 25);
+
+            // Draw pause overlay
+            if (paused) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff6b9d';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            }
+        }
+
+        function gameLoop() {
+            animationFrame++;
+
+            if (gameRunning && !paused && !gameOver) {
+                updateBullets();
+                updateCentipede();
+                spawnSpider();
+                updateSpiders();
+                spawnScorpion();
+                updateScorpions();
+                checkCollisions();
+            }
+
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            document.getElementById('game-message').classList.remove('show');
+            document.getElementById('game-message').classList.remove('game-over');
+            initGame();
+            gameRunning = true;
+        }
+
+        let keys = {};
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+
+            if (e.key === 'p' || e.key === 'P') {
+                if (gameRunning) {
+                    paused = !paused;
+                    document.getElementById('paused').classList.toggle('show', paused);
+                }
+                return;
+            }
+
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (!gameRunning) {
+                    startGame();
+                } else if (!paused && !gameOver) {
+                    shoot();
+                }
+                return;
+            }
+
+            if (!gameRunning || paused || gameOver) return;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        // Handle continuous movement
+        setInterval(() => {
+            if (gameRunning && !paused && !gameOver) {
+                if (keys['ArrowLeft']) {
+                    movePlayer(-player.speed, 0);
+                }
+                if (keys['ArrowRight']) {
+                    movePlayer(player.speed, 0);
+                }
+                if (keys['ArrowUp']) {
+                    aim(player.angle - 0.05);
+                }
+                if (keys['ArrowDown']) {
+                    aim(player.angle + 0.05);
+                }
+            }
+        }, 16);
+
+        document.getElementById('highScore').textContent = highScore;
+        document.getElementById('game-message').classList.add('show');
+
+        gameLoop();
+    </script>
+</body>
+</html>
+
+    <a href="launcher.html" style="position: fixed; top: 15px; left: 15px; padding: 10px 20px; background: rgba(255, 107, 157, 0.2); border: 2px solid #ff6b9d; border-radius: 8px; color: #ff6b9d; text-decoration: none; font-size: 14px; font-weight: bold; font-family: Arial, sans-serif; z-index: 1000; transition: all 0.3s;">← Back to Launcher</a>
+
+    <footer style="position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,0.5); font-size: 12px; font-family: Arial, sans-serif;">
+        Powered by <a href="mailto:grteam2@gmail.com" style="color: #ff6b9d; text-decoration: none;">Grteam</a>
+    </footer>
